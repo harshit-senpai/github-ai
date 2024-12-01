@@ -13,6 +13,8 @@ import {
 } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import { api } from "~/trpc/react";
+import { toast } from "sonner";
 export default function CreatePage() {
   const form = useForm<z.infer<typeof createProjectSchema>>({
     resolver: zodResolver(createProjectSchema),
@@ -23,10 +25,27 @@ export default function CreatePage() {
     },
   });
 
+  const createProject = api.project.createProject.useMutation();
+
   const { isSubmitting, isValid } = form.formState;
 
   const onSubmit = (values: z.infer<typeof createProjectSchema>) => {
-    window.alert(values);
+    createProject.mutate(
+      {
+        repoUrl: values.repoUrl,
+        projectName: values.projectName,
+        githubToken: values.githubToken,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Project created successfully");
+          form.reset();
+        },
+        onError: () => {
+          toast.error("Failed to create project");
+        },
+      },
+    );
   };
 
   return (
@@ -98,7 +117,10 @@ export default function CreatePage() {
                   )}
                 />
               </div>
-              <Button type="submit" disabled={isSubmitting || !isValid}>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !isValid || createProject.isPending}
+              >
                 Create Project
               </Button>
             </form>

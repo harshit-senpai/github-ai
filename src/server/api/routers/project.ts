@@ -1,8 +1,22 @@
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { createTRPCRouter, protectProcedure } from "../trpc";
+import { createProjectSchema } from "~/schema";
 
 export const projectRouter = createTRPCRouter({
-    createProject: publicProcedure.input().mutation(async ({ ctx, input }) => {
-        console.log("Working project")
-        return true
-    })
-})
+  createProject: protectProcedure
+    .input(createProjectSchema)
+    .mutation(async ({ ctx, input }) => {
+      const project = await ctx.db.project.create({
+        data: {
+          githubUrl: input.repoUrl,
+          projectName: input.projectName,
+          userToProject: {
+            create: {
+              userId: ctx.user.userId!,
+            },
+          },
+        },
+      });
+
+      return project;
+    }),
+});
