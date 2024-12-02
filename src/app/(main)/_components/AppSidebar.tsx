@@ -18,12 +18,14 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "~/components/ui/sidebar";
-import { SidebarItems, testProjects } from "~/constants";
+import { SidebarItems } from "~/constants";
+import useProject from "~/hooks/useProjects";
 import { cn } from "~/lib/utils";
 
 export const AppSidebar = () => {
   const pathname = usePathname();
   const { open } = useSidebar();
+  const { projects, setProjectId, projectId } = useProject();
 
   return (
     <Sidebar
@@ -72,24 +74,24 @@ export const AppSidebar = () => {
           <SidebarGroupLabel>Your Projects</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {testProjects.map((project) => (
-                <SidebarMenuItem key={project.title}>
+              {projects?.map((project) => (
+                <SidebarMenuItem key={project.projectName}>
                   <SidebarMenuButton asChild>
-                    <div>
+                    <div onClick={() => setProjectId(project.id)}>
                       <div
                         className={cn(
                           "flex size-6 items-center justify-center rounded-sm border bg-white text-sm text-primary",
                           {
-                            "bg-primary text-white": true,
+                            "bg-primary text-white": projectId === project.id,
                           },
                           {
                             "px-2": !open,
                           },
                         )}
                       >
-                        {project.title[0]}
+                        {project.projectName[0]}
                       </div>
-                      {open && <span>{project.title}</span>}
+                      {open && <span>{project.projectName}</span>}
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
