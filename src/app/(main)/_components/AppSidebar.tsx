@@ -77,7 +77,10 @@ export const AppSidebar = () => {
               {projects?.map((project) => (
                 <SidebarMenuItem key={project.projectName}>
                   <SidebarMenuButton asChild>
-                    <div onClick={() => setProjectId(project.id)}>
+                    <div
+                      onClick={() => setProjectId(project.id)}
+                      className="cursor-pointer"
+                    >
                       <div
                         className={cn(
                           "flex size-6 items-center justify-center rounded-sm border bg-white text-sm text-primary",

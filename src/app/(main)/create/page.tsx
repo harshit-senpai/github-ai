@@ -15,6 +15,7 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { api } from "~/trpc/react";
 import { toast } from "sonner";
+import useRefetch from "~/hooks/useRefetch";
 export default function CreatePage() {
   const form = useForm<z.infer<typeof createProjectSchema>>({
     resolver: zodResolver(createProjectSchema),
@@ -24,6 +25,8 @@ export default function CreatePage() {
       githubToken: "",
     },
   });
+
+  const refetch = useRefetch();
 
   const createProject = api.project.createProject.useMutation();
 
@@ -39,6 +42,7 @@ export default function CreatePage() {
       {
         onSuccess: () => {
           toast.success("Project created successfully");
+          refetch();
           form.reset();
         },
         onError: () => {
