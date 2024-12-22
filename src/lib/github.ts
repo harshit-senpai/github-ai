@@ -15,8 +15,6 @@ export const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
 });
 
-const githubUrl = "https://github.com/docker/genai-stack";
-
 export const getCommitHashes = async (
   githubUrl: string,
 ): Promise<Response[]> => {
@@ -37,7 +35,7 @@ export const getCommitHashes = async (
       new Date(a.commit.author.date).getTime(),
   ) as any[];
 
-  return sortedCommit.slice(0, 15).map((commit: any) => ({
+  return sortedCommit.slice(0, 10).map((commit: any) => ({
     commitHash: commit.sha,
     commitMessage: commit.commit.message ?? "",
     commitAuthorName: commit.commit?.author?.name ?? "",
@@ -133,5 +131,3 @@ async function filterUnprocessedCommits(
 
   return unprocessedCommits;
 }
-
-await pullCommit("cm464xen10003ag8qheq6lvzt").then(console.log);
