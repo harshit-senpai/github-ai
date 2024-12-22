@@ -92,7 +92,8 @@ async function summarizeCommit(githubUrl: string, commitHash: string) {
     },
   });
 
-  return (await aiSummarizeCommit(data)) || "";
+  const summary = await aiSummarizeCommit(data);
+  return summary;
 }
 
 async function fetchProjectGithubUrl(projectId: string) {

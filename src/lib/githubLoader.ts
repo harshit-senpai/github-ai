@@ -8,7 +8,7 @@ export const githubRepoLoader = async (
   githubToken?: string,
 ) => {
   const loader = new GithubRepoLoader(githubUrl, {
-    accessToken: githubToken || "",
+    accessToken: githubToken ||  process.env.GITHUB_TOKEN,
     branch: "main",
     recursive: true,
     ignoreFiles: [
@@ -44,15 +44,15 @@ export const indexGithubRepo = async (
     // inserting source code embedding
     const sourceCodeEmbeddings = await db.sourceCodeEmbedding.create({
         data: {
-            summary: embedding.summary,
-            sourceCode: embedding.sourceCode,
+            summary: embedding.summary as string,
+            sourceCode: JSON.stringify(embedding.sourceCode),
             fileName: embedding.fileName,
             projectId,
         }
     })
 
     // inserting summary embedding as raw query
-    
+
     await db.$executeRaw`
     UPDATE "SourceCodeEmbedding"
     SET "summaryEmbedding" = ${embedding.embedding}::vector
@@ -65,7 +65,7 @@ const generateEmbeddings = async (docs: Document[]) => {
   return await Promise.all(
     docs.map(async (docs) => {
       const summary = await summarizedCode(docs);
-      const embedding = await aiGenerateEmbeddings(summary);
+      const embedding = await aiGenerateEmbeddings(summary as string);
 
       return {
         summary,
