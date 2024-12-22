@@ -1,6 +1,7 @@
 import { GithubRepoLoader } from "@langchain/community/document_loaders/web/github";
 import { Document } from "@langchain/core/documents";
 import { aiGenerateEmbeddings, summarizedCode } from "./ai";
+import { db } from "~/server/db";
 
 export const githubRepoLoader = async (
   githubUrl: string,
@@ -32,6 +33,32 @@ export const indexGithubRepo = async (
 ) => {
   const docs = await githubRepoLoader(githubUrl, githubToken);
   const allEmbeddings = await generateEmbeddings(docs);
+
+  //   inserting embedding in db
+
+  await Promise.allSettled(allEmbeddings.map(async (embedding, index) => {
+    console.log(`Processing ${index} of ${allEmbeddings.length}`);
+    
+    if(!embedding) return;
+
+    // inserting source code embedding
+    const sourceCodeEmbeddings = await db.sourceCodeEmbedding.create({
+        data: {
+            summary: embedding.summary,
+            sourceCode: embedding.sourceCode,
+            fileName: embedding.fileName,
+            projectId,
+        }
+    })
+
+    // inserting summary embedding as raw query
+    
+    await db.$executeRaw`
+    UPDATE "SourceCodeEmbedding"
+    SET "summaryEmbedding" = ${embedding.embedding}::vector
+    WHERE "id" = ${sourceCodeEmbeddings.id}
+    `
+  }))
 };
 
 const generateEmbeddings = async (docs: Document[]) => {
