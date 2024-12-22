@@ -1,6 +1,7 @@
 import { pullCommit } from "~/lib/github";
 import { createTRPCRouter, protectProcedure } from "../trpc";
 import { createProjectSchema } from "~/schema";
+import { z } from "zod";
 
 export const projectRouter = createTRPCRouter({
   createProject: protectProcedure
@@ -32,4 +33,17 @@ export const projectRouter = createTRPCRouter({
       },
     });
   }),
+  getCommits: protectProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return await ctx.db.commit.findMany({
+        where: {
+          projectId: input.projectId,
+        },
+      });
+    }),
 });

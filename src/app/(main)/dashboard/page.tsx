@@ -3,6 +3,7 @@
 import { ExternalLink, Github } from "lucide-react";
 import Link from "next/link";
 import useProject from "~/hooks/useProjects";
+import { CommitLog } from "./_components/CommitLog";
 
 const DashboardPage = () => {
   const { project } = useProject();
@@ -35,7 +36,9 @@ const DashboardPage = () => {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-5"></div>
       </section>
 
-      <section className="mt-8"></section>
+      <section className="mt-8">
+        <CommitLog />
+      </section>
     </main>
   );
 };
