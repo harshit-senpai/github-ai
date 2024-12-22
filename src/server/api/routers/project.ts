@@ -1,3 +1,4 @@
+import { pullCommit } from "~/lib/github";
 import { createTRPCRouter, protectProcedure } from "../trpc";
 import { createProjectSchema } from "~/schema";
 
@@ -16,7 +17,7 @@ export const projectRouter = createTRPCRouter({
           },
         },
       });
-
+      await pullCommit(project.id);
       return project;
     }),
   getProjects: protectProcedure.query(async ({ ctx }) => {
