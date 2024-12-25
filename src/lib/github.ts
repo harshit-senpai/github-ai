@@ -35,7 +35,7 @@ export const getCommitHashes = async (
       new Date(a.commit.author.date).getTime(),
   ) as any[];
 
-  return sortedCommit.slice(0, 10).map((commit: any) => ({
+  return sortedCommit.slice(0, 15).map((commit: any) => ({
     commitHash: commit.sha,
     commitMessage: commit.commit.message ?? "",
     commitAuthorName: commit.commit?.author?.name ?? "",
@@ -49,40 +49,77 @@ export const pullCommit = async (projectId: string) => {
 
   const commitHashes = await getCommitHashes(githubUrl);
 
+  console.log(`Total commits to process: ${commitHashes.length}`);
   const unprocessedCommits = await filterUnprocessedCommits(
     projectId,
     commitHashes,
   );
+  console.log(`Unprocessed commits: ${unprocessedCommits.length}`);
 
-  const summaryResponses = await Promise.allSettled(
-    unprocessedCommits.map((commit) => {
-      return summarizeCommit(githubUrl, commit.commitHash);
-    }),
-  );
+  // const summaryResponses = await Promise.allSettled(
+  //   unprocessedCommits.map((commit) => {
+  //     return summarizeCommit(githubUrl, commit.commitHash);
+  //   }),
+  // );
 
-  const summaries = summaryResponses.map((response) => {
-    if (response.status === "fulfilled") {
-      return response.value as string;
+  // const summaries = summaryResponses.map((response) => {
+  //   if (response.status === "fulfilled") {
+  //     return response.value;
+  //   }
+  //   return "";
+  // });
+
+  // const commit = await db.commit.createMany({
+  //   data: summaries.map((summary, index) => {
+  //     console.log(`Processing ${index} summaries`);
+  //     return {
+  //       projectId: projectId,
+  //       commitHash: unprocessedCommits[index]!.commitHash,
+  //       commitMessage: unprocessedCommits[index]!.commitMessage,
+  //       commitAuthorName: unprocessedCommits[index]!.commitAuthorName,
+  //       commitAuthorAvatar: unprocessedCommits[index]!.commitAuthorAvatar,
+  //       commitDate: unprocessedCommits[index]!.commitDate,
+  //       summary: summary,
+  //     };
+  //   }),
+  // });
+
+  // return commit;
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < unprocessedCommits.length; i += BATCH_SIZE) {
+    const batch = unprocessedCommits.slice(i, i + BATCH_SIZE);
+    console.log(`Processing commit batch ${i / BATCH_SIZE + 1} of ${Math.ceil(unprocessedCommits.length / BATCH_SIZE)}`);
+
+    for (const commit of batch) {
+      try {
+        console.log(`Processing commit: ${commit.commitHash}`);
+        const summary = await summarizeCommit(githubUrl, commit.commitHash);
+
+        await db.commit.create({
+          data: {
+            projectId,
+            commitHash: commit.commitHash,
+            commitMessage: commit.commitMessage,
+            commitAuthorName: commit.commitAuthorName,
+            commitAuthorAvatar: commit.commitAuthorAvatar,
+            commitDate: commit.commitDate,
+            summary,
+          },
+        });
+
+        // Add delay between commits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Failed to process commit ${commit.commitHash}:`, error);
+        continue;
+      }
     }
-    return "";
-  });
 
-  const commit = await db.commit.createMany({
-    data: summaries.map((summary, index) => {
-      console.log(`Processing ${index} summaries`);
-      return {
-        projectId: projectId,
-        commitHash: unprocessedCommits[index]!.commitHash,
-        commitMessage: unprocessedCommits[index]!.commitMessage,
-        commitAuthorName: unprocessedCommits[index]!.commitAuthorName,
-        commitAuthorAvatar: unprocessedCommits[index]!.commitAuthorAvatar,
-        commitDate: unprocessedCommits[index]!.commitDate,
-        summary: summary,
-      };
-    }),
-  });
-
-  return commit;
+    // Add delay between batches
+    if (i + BATCH_SIZE < unprocessedCommits.length) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
 };
 
 async function summarizeCommit(githubUrl: string, commitHash: string) {

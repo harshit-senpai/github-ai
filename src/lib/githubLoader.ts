@@ -8,7 +8,7 @@ export const githubRepoLoader = async (
   githubToken?: string,
 ) => {
   const loader = new GithubRepoLoader(githubUrl, {
-    accessToken: githubToken ||  process.env.GITHUB_TOKEN,
+    accessToken: githubToken || process.env.GITHUB_TOKEN,
     branch: "main",
     recursive: true,
     ignoreFiles: [
@@ -18,10 +18,11 @@ export const githubRepoLoader = async (
       "bun-lockb",
     ],
     unknown: "warn",
-    maxConcurrency: 5,
+    maxConcurrency: 2
   });
 
   const docs = await loader.load();
+  console.log(`Loaded ${docs.length} documents from ${githubUrl}`);
 
   return docs;
 };
@@ -32,47 +33,73 @@ export const indexGithubRepo = async (
   githubToken?: string,
 ) => {
   const docs = await githubRepoLoader(githubUrl, githubToken);
-  const allEmbeddings = await generateEmbeddings(docs);
 
   //   inserting embedding in db
 
-  await Promise.allSettled(allEmbeddings.map(async (embedding, index) => {
-    console.log(`Processing ${index} of ${allEmbeddings.length}`);
-    
-    if(!embedding) return;
+  // await Promise.allSettled(
+  //   allEmbeddings.map(async (embedding, index) => {
+  //     console.log(`Processing ${index} of ${allEmbeddings.length}`);
 
-    // inserting source code embedding
-    const sourceCodeEmbeddings = await db.sourceCodeEmbedding.create({
-        data: {
-            summary: embedding.summary as string,
-            sourceCode: JSON.stringify(embedding.sourceCode),
-            fileName: embedding.fileName,
+  //     if (!embedding) return;
+
+  //     console.log("Summary: 🎉", embedding.summary);
+
+  //     // inserting source code embedding
+  //     const sourceCodeEmbeddings = await db.sourceCodeEmbedding.create({
+  //       data: {
+  //         summary: embedding.summary,
+  //         sourceCode: JSON.stringify(embedding.sourceCode),
+  //         fileName: embedding.fileName,
+  //         projectId,
+  //       },
+  //     });
+
+  //     // inserting summary embedding as raw query
+
+  //     await db.$executeRaw`
+  //   UPDATE "SourceCodeEmbedding"
+  //   SET "summaryEmbedding" = ${embedding.embedding}::vector
+  //   WHERE "id" = ${sourceCodeEmbeddings.id}
+  //   `;
+  //   }),
+  // );
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    const batch = docs.slice(i, i + BATCH_SIZE);
+    console.log(`Processing batch ${i / BATCH_SIZE + 1} of ${Math.ceil(docs.length / BATCH_SIZE)}`);
+
+    for (const doc of batch) {
+      try {
+        console.log(`Processing file: ${doc.metadata.source}`);
+        const summary = await summarizedCode(doc);
+        const embedding = await aiGenerateEmbeddings(summary);
+
+        const sourceCodeEmbeddings = await db.sourceCodeEmbedding.create({
+          data: {
+            summary,
+            sourceCode: JSON.stringify(doc),
+            fileName: doc.metadata.source,
             projectId,
-        }
-    })
+          },
+        });
 
-    // inserting summary embedding as raw query
+        await db.$executeRaw`
+          UPDATE "SourceCodeEmbedding"
+          SET "summaryEmbedding" = ${embedding}::vector
+          WHERE "id" = ${sourceCodeEmbeddings.id}
+        `;
 
-    await db.$executeRaw`
-    UPDATE "SourceCodeEmbedding"
-    SET "summaryEmbedding" = ${embedding.embedding}::vector
-    WHERE "id" = ${sourceCodeEmbeddings.id}
-    `
-  }))
-};
+        // Add delay between files
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Failed to process ${doc.metadata.source}:`, error);
+        continue;
+      }
+    }
 
-const generateEmbeddings = async (docs: Document[]) => {
-  return await Promise.all(
-    docs.map(async (docs) => {
-      const summary = await summarizedCode(docs);
-      const embedding = await aiGenerateEmbeddings(summary as string);
-
-      return {
-        summary,
-        embedding,
-        sourceCode: JSON.parse(JSON.stringify(docs)),
-        fileName: docs.metadata.source,
-      };
-    }),
-  );
+    // Add delay between batches
+    if (i + BATCH_SIZE < docs.length) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
 };

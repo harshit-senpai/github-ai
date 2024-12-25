@@ -42,11 +42,17 @@ export const projectRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      pullCommit(input.projectId).then().catch(console.error);
-      return await ctx.db.commit.findMany({
+      const existingCommits = await ctx.db.commit.findMany({
         where: {
           projectId: input.projectId,
         },
       });
+
+      // Only trigger pullCommit if no commits exist
+      if (existingCommits.length === 0) {
+        pullCommit(input.projectId).then().catch(console.error);
+      }
+
+      return existingCommits;
     }),
 });

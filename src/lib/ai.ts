@@ -52,8 +52,7 @@ export const aiSummarizeCommit = async (diff: string) => {
 export async function summarizedCode(docs: Document) {
   try {
     console.log(`getting summary for ${docs.metadata.source}`);
-
-    const code = docs.pageContent.slice(0, 60000);
+    const code = docs.pageContent.slice(0, 10000);
 
     const response = await model.generateContent([
       "You are an intelligent Senior software engineer who specialises in onboarding junior software engineers onto projects",
